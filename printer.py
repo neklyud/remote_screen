@@ -1,9 +1,9 @@
 import time
 def printer():
     i = 0
-    while i < 10:
+    while True:
         print(i)
         i+=1
-        time.sleep(1)
+        time.sleep(0.01)
 
 printer()
