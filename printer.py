@@ -6,4 +6,7 @@ def printer():
         i+=1
         time.sleep(0.01)
 
-printer()
+if __name__ == "__main__":
+    printer()
+
+#printer()

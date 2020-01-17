@@ -1,5 +1,6 @@
 import threading
 import subprocess
+import os
 
 def output_reader(proc, connection, q):
     for line in iter(proc.stdout.readline, b''):
@@ -15,7 +16,8 @@ class client_thread(threading.Thread):
     def __init__(self, connection, path, q):
         threading.Thread.__init__(self)
         self.connection = connection
-        self.proc = subprocess.Popen(['python3', '-u', '-m', path], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=13)
+        os.environ["CUDA_VISIBLE_DEVICES"]="0"
+        self.proc = subprocess.Popen(['python','-u', path], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=13)
         self.q = q
     def run(self):
         print("client thread is running...")

@@ -8,6 +8,7 @@ import sys
 import threading
 import client_thread
 import queue
+import importlib
 from protocol import *
 
 def subscriber(client):
@@ -18,6 +19,11 @@ def subscriber(client):
         print(msg)
         send(client.connection, msg)
 
+def add_module(path):
+    module_name = os.path.basename(path)
+    package_name = os.path.dirname(path)
+    module = importlib.import_module(module_name[:-3], package=package_name)
+    return module
 
 class server:
     def __init__(self, host='192.168.33.233', port=8686, domain=socket.AF_INET, sock_type=socket.SOCK_STREAM):
@@ -31,6 +37,7 @@ class server:
             connection, address = self.socket.accept()
             start_command = recv(connection)
             q = queue.Queue(maxsize=1)
+            #module = add_module(start_command[1])
             client = client_thread.client_thread(connection, start_command[1], q)
             print("new connection from {address}".format(address=address))
             while True:
