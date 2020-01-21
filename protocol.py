@@ -14,7 +14,7 @@ def split_num_str(string):
 
 def recv(connection):
     msg_len = str(connection.recv(4).decode("UTF-8"))
-
+    print(msg_len)
     if not msg_len:
         return None
 

@@ -37,7 +37,6 @@ class server:
             connection, address = self.socket.accept()
             start_command = recv(connection)
             q = queue.Queue(maxsize=1)
-            #module = add_module(start_command[1])
             client = client_thread.client_thread(connection, start_command[1], q)
             print("new connection from {address}".format(address=address))
             while True:
@@ -58,6 +57,12 @@ class server:
                     print("Connection is closed")
                     connection.close()
                     break
+                elif command[0] == 'check':
+                    print("check status")
+                    print('pid of process:', client.proc.pid)
+                    send(connection, bytes('process is active', encoding="UTF-8"))
+
+                    
                 
                         
 serv = server()
