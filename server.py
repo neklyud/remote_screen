@@ -1,24 +1,14 @@
 import socket
-import manager
-import parser
-import codecs
 import os
 import subprocess
-import sys
 import threading
-import client_thread
 import queue
-import importlib
+
+import manager
 from protocol import *
+from client_thread import *
 
-
-def subscriber(client):
-    while client.isAlive():
-        if client.q.empty():
-            continue
-        msg = client.q.get()
-        print(msg)
-        send(client.connection, msg)
+global client    
 
 def sender_subscriber(q, connection, e):
     while True:
@@ -31,26 +21,24 @@ def sender_subscriber(q, connection, e):
         send(connection, msg)
     e.clear()
 
-def add_module(path):
-    module_name = os.path.basename(path)
-    package_name = os.path.dirname(path)
-    module = importlib.import_module(module_name[:-3], package=package_name)
-    return module
-
 class server:
     def __init__(self, host='192.168.33.233', port=8686, domain=socket.AF_INET, sock_type=socket.SOCK_STREAM):
         self.socket = socket.socket(domain, sock_type)
         self.socket.bind((host, port))
         self.socket.listen(1)
-        self.qOut = queue.Queue(maxsize=1)
+
+        global client
+        self.client = client # client_thread.client_thread(q=self.qOut)
+
     def handle(self):
+        client.start() 
         while True:
             print("waiting connection")
             connection, address = self.socket.accept()
             print("connection is set...")
             kill_event = threading.Event()
-            sender = threading.Thread(target=sender_subscriber, args=(self.qOut, connection, kill_event), daemon=True)
-            manag = manager.Manager(self.qOut, connection, kill_event)
+            sender = threading.Thread(target=sender_subscriber, args=(client.q, connection, kill_event), daemon=True)
+            manag = manager.Manager(client.q, connection, kill_event)
             manag.start()
             sender.start()
             manag.join()

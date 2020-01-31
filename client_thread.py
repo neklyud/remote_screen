@@ -1,22 +1,34 @@
+import time
 import threading
 import subprocess
 import os
-import signal
-import sys
+import queue
 
-def output_reader(proc, connection, q, event):
+
+def output_reader(proc, q, event, kill):
     try:
-        for line in iter(proc.stdout.readline, b''):
-            print(line)
+        while True:
+            line = proc.stdout.readline()
+            if not line:
+                continue
             if event.is_set():
-                q.put(bytes('log: {0}'.format(line.decode('utf-8'), end=''), encoding="UTF-8"),timeout=0.15)                
+                if not q.full():
+                    q.put(bytes('log: {0}'.format(line.decode('utf-8'), end=''), encoding="UTF-8"))
             proc.stdout.flush()
+            #for line in iter(proc.stdout.readline, b''):
+            #    if event.is_set():
+            #        if not q.full():
+            #            q.put(bytes('log: {0}'.format(line.decode('utf-8'), end=''), encoding="UTF-8"))
+            #    proc.stdout.flush()
     except ValueError:
         pass
 
 def make_running_command(params):
-    command = 'python -u ' + str(params[0]) + ' --dataset_name=' + '"' + str(params[1]) + '" ' + '--batch_siz='+str(params[2]) + ' --lr=' + str(params[3])
-    return command.split()
+    try:
+        command = 'python -u ' + str(params[0]) + ' --dataset_name=' + '"' + str(params[1]) + '" ' + '--batch_siz='+str(params[2]) + ' --lr=' + str(params[3])
+        return command.split()
+    except:
+        return ['echo']
 
 class output_status:
     def __init__(self):
@@ -26,23 +38,32 @@ class output_status:
 
 class client_thread(threading.Thread):
     
-    def __init__(self, connection, params, q):
+    def __init__(self, params = None, q = None):
         threading.Thread.__init__(self)
-        self.connection = connection
-        os.environ["CUDA_VISIBLE_DEVICES"]="0"
-        self.q = q
+        os.environ["CUDA_VISIBLE_DEVICES"]="1"
+        self.q = queue.Queue(maxsize=20)
         self.params = params
-        self.status = 1
-        self.proc = subprocess.Popen(make_running_command(self.params),stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=13, shell=False)
+        self.status = 0
         self.output_event = threading.Event()
-
+        self.kill_event = threading.Event()
     def run(self):
         print("client thread is running...")
-        output_reader(self.proc, self.connection, self.q, self.output_event)
+        print(make_running_command(self.params))
+        while True:
+            time.sleep(0.1)
+            if self.params is None:
+                continue
+            p = make_running_command(self.params)
+            if self.status == 1:
+                self.proc = subprocess.Popen(make_running_command(self.params),stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False)
+                output_reader(self.proc, self.q, self.output_event, self.kill_event)
+
     
-    def kill(self):
+    def stop_learning(self):
+        self.status = 0
         self.q.task_done()
         self.output_event.clear()
+        self.kill_event.set()
         self.proc.stderr.close()
         self.proc.stdout.close()
         self.proc.stdin.close()
@@ -50,5 +71,17 @@ class client_thread(threading.Thread):
         self.proc.kill()
         self.killed = True
 
+    def kill(self):
+        self.output_event.clear()
+        self.q.queue.clear()
+
     def set_output(self):
         self.output_event.set()
+
+    def reset_outout(self):
+        self.output_event.clear()
+
+    def set_status(self, val):
+        self.status = val
+
+client = client_thread()
